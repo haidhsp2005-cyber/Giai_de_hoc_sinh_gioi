@@ -1,0 +1,25 @@
+# Environment Variables (Bảo mật - KHÔNG commit mã API Key)
+.env
+.env.local
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Temporary uploads & logs
+uploads/*
+!uploads/.gitkeep
+*.log
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSG Solver AI - Trợ lý Giải Đề Thi Học Sinh Giỏi Tin Học (Ollama / Gemini / Song Song)</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Marked (Markdown Parser) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- KaTeX for Math rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+    <!-- PrismJS for Syntax Highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+
+    <!-- App Stylesheet -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="dark-theme">
+    <!-- Navigation Bar -->
+    <header class="navbar">
+        <div class="nav-brand">
+            <div class="logo-icon">
+                <i data-lucide="trophy"></i>
+            </div>
+            <div class="brand-text">
+                <span class="brand-title">HSG SOLVER AI</span>
+                <span class="brand-badge">HYBRID & DUAL SOLVER</span>
+            </div>
+        </div>
+
+        <div class="nav-controls">
+            <!-- Platform Selector: Ollama / Gemini .env / Song Song -->
+            <div class="platform-selector">
+                <button class="plat-btn active" data-provider="ollama" title="Dùng mô hình Ollama chạy trên máy tính">
+                    <i data-lucide="hard-drive"></i> Ollama Local
+                </button>
+                <button class="plat-btn" data-provider="gemini" title="Dùng Google Gemini đọc API Key từ .env (Xoay vòng key)">
+                    <i data-lucide="cloud"></i> Gemini .env
+                </button>
+                <button class="plat-btn" data-provider="parallel" title="Chạy cả 2 song song trên màn hình chia đôi để đối chiếu">
+                    <i data-lucide="columns-2"></i> Song Song (Dual)
+                </button>
+            </div>
+
+            <!-- API Keys Manager Trigger -->
+            <button id="openKeysModalBtn" class="btn-keys-status" title="Quản lý API Key Gemini / DeepSeek">
+                <i data-lucide="key"></i>
+                <span id="geminiEnvBadge">Gemini .env: Đang nạp...</span>
+            </button>
+
+            <!-- Model Selection Dropdown -->
+            <div class="model-select-wrapper" id="modelSelectWrapper">
+                <i data-lucide="cpu" class="model-icon"></i>
+                <select id="modelSelect" class="custom-select" title="Chọn mô hình AI">
+                    <option value="qwen2.5:7b">qwen2.5:7b (Ưu tiên tư duy HSG)</option>
+                    <option value="qwen2.5-coder:7b">qwen2.5-coder:7b (Ưu tiên Code)</option>
+                </select>
+            </div>
+
+            <!-- Theme Toggle -->
+            <button id="themeToggle" class="btn-icon" title="Chuyển chế độ Sáng / Tối">
+                <i data-lucide="sun" id="themeIcon"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-layout">
+        <!-- Left Panel: Input & Config -->
+        <section class="panel input-panel">
+            <div class="panel-header">
+                <h2><i data-lucide="file-code-2"></i> Nhập Đề Bài</h2>
+                <div class="quick-samples">
+                    <span class="sample-label">Đề mẫu:</span>
+                    <button class="sample-btn" data-sample="subset_sum" title="Dãy con tổng bằng S">Subset Sum</button>
+                    <button class="sample-btn" data-sample="max_subarray" title="Đoạn con tổng lớn nhất">Max Subarray</button>
+                    <button class="sample-btn" data-sample="binary_search_wood" title="Chặt nhị phân cây gỗ">EKO Wood</button>
+                </div>
+            </div>
+
+            <!-- Drag & Drop Upload Zone -->
+            <div class="upload-dropzone" id="dropZone">
+                <input type="file" id="fileInput" accept=".docx,.pdf,.png,.jpg,.jpeg,.webp,.txt" hidden>
+                <div class="dropzone-content">
+                    <div class="upload-icon-wrapper">
+                        <i data-lucide="cloud-upload"></i>
+                    </div>
+                    <p class="dropzone-title">Kéo thả file đề bài hoặc <span>Duyệt file</span></p>
+                    <p class="dropzone-hint">Hỗ trợ <strong>.DOCX, .PDF, Ảnh chụp đề (.PNG, .JPG)</strong> hoặc <strong>Ctrl + V</strong> dán ảnh</p>
+                </div>
+            </div>
+
+            <!-- File Upload Status Bar -->
+            <div id="fileStatus" class="file-status hidden">
+                <div class="file-info">
+                    <i data-lucide="file-check-2" class="file-info-icon"></i>
+                    <div class="file-details">
+                        <span id="fileName" class="file-name">filename.docx</span>
+                        <span id="fileType" class="file-type-badge">DOCX</span>
+                    </div>
+                </div>
+                <button id="clearFileBtn" class="btn-icon-small" title="Xóa file">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <!-- Problem Statement Textarea -->
+            <div class="editor-wrapper">
+                <div class="editor-toolbar">
+                    <span>Nội dung đề bài chi tiết (có thể chỉnh sửa):</span>
+                    <div class="editor-actions">
+                        <button id="pasteBtn" class="btn-text-small" title="Dán từ Clipboard"><i data-lucide="clipboard-paste"></i> Dán</button>
+                        <button id="clearTextBtn" class="btn-text-small" title="Xóa nội dung"><i data-lucide="trash-2"></i> Xóa</button>
+                    </div>
+                </div>
+                <textarea id="problemInput" placeholder="Dán nội dung đề bài thi HSG, hoặc tải file .docx / .pdf / ảnh đề bài lên..."></textarea>
+                <div class="editor-footer">
+                    <span id="charCount">0 ký tự</span>
+                    <span class="editor-tip"><i data-lucide="info"></i> Nhấn Ctrl+V để dán ảnh chụp đề bài trực tiếp!</span>
+                </div>
+            </div>
+
+            <!-- Action Footer -->
+            <div class="action-footer">
+                <button id="solveBtn" class="btn-primary">
+                    <i data-lucide="sparkles"></i>
+                    <span id="solveBtnText">GIẢI ĐỀ BẰNG OLLAMA LOCAL</span>
+                </button>
+                <button id="stopBtn" class="btn-danger hidden">
+                    <i data-lucide="square"></i>
+                    <span>Dừng</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Right Panel: Output & Solution Tabs / Split View -->
+        <section class="panel output-panel">
+            <!-- Multi-Agent Live Pipeline Bar -->
+            <div id="agentPipelineCard" class="agent-pipeline-card hidden">
+                <div class="pipeline-header">
+                    <div class="pipeline-title">
+                        <i data-lucide="cpu" class="pipeline-icon"></i>
+                        <span>Tiến Trình Hội Đồng AI Agent Chuyên Nghiệp (5 Bước Tối Ưu)</span>
+                    </div>
+                    <span id="pipelineStatusBadge" class="pipeline-status-badge">Đang hoạt động</span>
+                </div>
+                <div class="pipeline-steps">
+                    <div class="pipeline-step" id="step-0">
+                        <div class="step-circle"><i data-lucide="search"></i></div>
+                        <div class="step-info">
+                            <span class="step-name">1. Thẩm định & Ràng buộc</span>
+                            <span class="step-desc">ConstraintAnalyst</span>
+                        </div>
+                    </div>
+                    <div class="pipeline-step" id="step-1">
+                        <div class="step-circle"><i data-lucide="lightbulb"></i></div>
+                        <div class="step-info">
+                            <span class="step-name">2. Thiết kế Giải thuật</span>
+                            <span class="step-desc">AlgorithmArchitect</span>
+                        </div>
+                    </div>
+                    <div class="pipeline-step" id="step-2">
+                        <div class="step-circle"><i data-lucide="code-2"></i></div>
+                        <div class="step-info">
+                            <span class="step-name">3. Sinh Code C++/Python</span>
+                            <span class="step-desc">CompetitiveCoder</span>
+                        </div>
+                    </div>
+                    <div class="pipeline-step" id="step-3">
+                        <div class="step-circle"><i data-lucide="flask-conical"></i></div>
+                        <div class="step-info">
+                            <span class="step-name">4. Test & Generator</span>
+                            <span class="step-desc">TestEngineer</span>
+                        </div>
+                    </div>
+                    <div class="pipeline-step" id="step-4">
+                        <div class="step-circle"><i data-lucide="shield-check"></i></div>
+                        <div class="step-info">
+                            <span class="step-name">5. Phản biện & Hoàn thiện</span>
+                            <span class="step-desc">ReviewerAuditor</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Single View Container -->
+            <div id="singleViewContainer">
+                <div class="panel-header tab-header">
+                    <div class="tabs-nav">
+                        <button class="tab-btn active" data-tab="tab-full">
+                            <i data-lucide="book-open"></i> Toàn Bộ Lời Giải
+                        </button>
+                        <button class="tab-btn" data-tab="tab-subtasks">
+                            <i data-lucide="layers"></i> Subtasks & Thuật Toán
+                        </button>
+                        <button class="tab-btn" data-tab="tab-cpp">
+                            <i data-lucide="code-2"></i> Code C++ (Fast I/O)
+                        </button>
+                        <button class="tab-btn" data-tab="tab-py">
+                            <i data-lucide="terminal"></i> Code Python 3
+                        </button>
+                        <button class="tab-btn" data-tab="tab-tests">
+                            <i data-lucide="flask-conical"></i> Test & Generator
+                        </button>
+                    </div>
+                    <div class="output-actions">
+                        <button id="copyAllBtn" class="btn-secondary" title="Sao chép toàn bộ lời giải Markdown">
+                            <i data-lucide="copy"></i> Copy Toàn Bộ
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="tabs-content">
+                    <!-- Tab: Toàn Bộ Lời Giải (Markdown) -->
+                    <div class="tab-pane active" id="tab-full">
+                        <!-- Placeholder State -->
+                        <div id="emptyState" class="empty-state">
+                            <div class="empty-icon">
+                                <i data-lucide="award"></i>
+                            </div>
+                            <h3>Chưa có lời giải nào được tạo</h3>
+                            <p>Tải lên đề bài và chọn phương thức giải: <strong>Ollama Local</strong>, <strong>Gemini .env</strong> hoặc <strong>Chạy Song Song</strong> để đối chiếu.</p>
+                        </div>
+
+                        <!-- Streaming Progress Header -->
+                        <div id="streamStatus" class="stream-status hidden">
+                            <div class="spinner"></div>
+                            <span id="streamStatusText">Đang phân tích đề bài và xây dựng lời giải...</span>
+                        </div>
+
+                        <!-- Rendered Markdown Output -->
+                        <div id="markdownOutput" class="markdown-body hidden"></div>
+                    </div>
+
+                    <!-- Tab: Subtasks & Thuật Toán -->
+                    <div class="tab-pane" id="tab-subtasks">
+                        <div id="subtasksContent" class="filtered-view markdown-body">
+                            <div class="tab-placeholder">Nội dung phân tích các Subtask sẽ hiển thị tại đây sau khi giải đề.</div>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Code C++ -->
+                    <div class="tab-pane" id="tab-cpp">
+                        <div class="code-tab-header">
+                            <span class="code-lang-tag">C++17 / C++20 (Fast I/O & No Overflow)</span>
+                            <div class="code-actions">
+                                <button id="copyCppBtn" class="btn-code-action"><i data-lucide="copy"></i> Sao Chép C++</button>
+                                <button id="downloadCppBtn" class="btn-code-action"><i data-lucide="download"></i> Tải solution.cpp</button>
+                            </div>
+                        </div>
+                        <pre class="code-box"><code id="cppCode" class="language-cpp">// Mã nguồn C++ sẽ xuất hiện tại đây...</code></pre>
+                    </div>
+
+                    <!-- Tab: Code Python -->
+                    <div class="tab-pane" id="tab-py">
+                        <div class="code-tab-header">
+                            <span class="code-lang-tag">Python 3 (Tối ưu I/O & Đệ quy)</span>
+                            <div class="code-actions">
+                                <button id="copyPyBtn" class="btn-code-action"><i data-lucide="copy"></i> Sao Chép Python</button>
+                                <button id="downloadPyBtn" class="btn-code-action"><i data-lucide="download"></i> Tải solution.py</button>
+                            </div>
+                        </div>
+                        <pre class="code-box"><code id="pyCode" class="language-python"># Mã nguồn Python sẽ xuất hiện tại đây...</code></pre>
+                    </div>
+
+                    <!-- Tab: Test & Generator -->
+                    <div class="tab-pane" id="tab-tests">
+                        <div class="code-tab-header">
+                            <span class="code-lang-tag">Bộ Sinh Test Ngẫu Nhiên (Python Test Generator)</span>
+                            <div class="code-actions">
+                                <button id="copyGenBtn" class="btn-code-action"><i data-lucide="copy"></i> Sao Chép Script</button>
+                                <button id="downloadGenBtn" class="btn-code-action"><i data-lucide="download"></i> Tải test_gen.py</button>
+                            </div>
+                        </div>
+                        <div id="testsAnalysis" class="markdown-body mb-3"></div>
+                        <pre class="code-box"><code id="genScriptCode" class="language-python"># Script sinh test ngẫu nhiên sẽ xuất hiện tại đây...</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dual Split View Container (Hidden initially) -->
+            <div id="dualViewContainer" class="dual-view-container hidden">
+                <div class="dual-column" id="dualColLeft">
+                    <div class="dual-col-header">
+                        <span class="dual-badge ollama-badge"><i data-lucide="hard-drive"></i> OLLAMA (QWEN 2.5:7B)</span>
+                        <button id="copyDualLeftBtn" class="btn-icon-small" title="Copy kết quả Ollama"><i data-lucide="copy"></i></button>
+                    </div>
+                    <div id="streamStatusLeft" class="stream-status-small hidden">
+                        <div class="spinner-small"></div> <span>Ollama đang phân tích...</span>
+                    </div>
+                    <div id="markdownOutputLeft" class="dual-markdown-body markdown-body"></div>
+                </div>
+
+                <div class="dual-column" id="dualColRight">
+                    <div class="dual-col-header">
+                        <span class="dual-badge gemini-badge"><i data-lucide="cloud"></i> GOOGLE GEMINI (.ENV)</span>
+                        <button id="copyDualRightBtn" class="btn-icon-small" title="Copy kết quả Gemini"><i data-lucide="copy"></i></button>
+                    </div>
+                    <div id="streamStatusRight" class="stream-status-small hidden">
+                        <div class="spinner-small"></div> <span>Gemini đang phân tích...</span>
+                    </div>
+                    <div id="markdownOutputRight" class="dual-markdown-body markdown-body"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal Quản Lý API Keys -->
+    <div id="keysModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i data-lucide="key-round"></i> Quản Lý API Key & Xoay Vòng (.env)</h3>
+                <button id="closeKeysModalBtn" class="btn-icon-small"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-hint">Hệ thống tự động nạp toàn bộ các key <code>GEMINI_API_KEY_1</code>, <code>GEMINI_API_KEY_2</code>,... từ tệp <code>.env</code> và tự động xoay vòng trong bộ nhớ. Bạn không cần phải nhập key thủ công trên web nữa! Mỗi dòng một key:</p>
+                <div class="form-group">
+                    <label>Google Gemini API Keys (Mỗi dòng 1 key để xoay vòng tránh 429):</label>
+                    <textarea id="geminiKeysInput" rows="4" placeholder="AIzaSy...&#10;AIzaSy..."></textarea>
+                </div>
+                <div class="key-status-summary" id="keyStatusSummary">
+                    <span>Đang tải thông tin key...</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="reloadEnvBtn" class="btn-secondary"><i data-lucide="refresh-cw"></i> Nạp lại từ .env</button>
+                <button id="saveKeysBtn" class="btn-primary"><i data-lucide="save"></i> Lưu Keys</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden">
+        <i data-lucide="check" class="toast-icon"></i>
+        <span id="toastMessage">Đã sao chép vào bộ nhớ tạm!</span>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

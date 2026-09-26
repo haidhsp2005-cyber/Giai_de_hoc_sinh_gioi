@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: hsg-solver-ai
+    runtime: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DEFAULT_GEMINI_MODEL
+        value: gemini-flash-latest
+      # Bạn có thể thêm các key Gemini vào Environment Variables trên Render Dashboard:
+      # GEMINI_API_KEY_1, GEMINI_API_KEY_2, ... hoặc GEMINI_API_KEYS
