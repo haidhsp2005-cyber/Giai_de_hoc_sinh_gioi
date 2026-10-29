@@ -3,12 +3,11 @@ import subprocess
 import tempfile
 from pathlib import Path
 from typing import Optional
-import docx
-from pypdf import PdfReader
-from PIL import Image
+# Lazy import docx, pypdf inside functions to speed up Vercel cold starts
 
 def parse_docx(file_path: Path) -> str:
     """Trích xuất toàn bộ văn bản và bảng biểu từ file .docx"""
+    import docx
     doc = docx.Document(str(file_path))
     content_parts = []
     
@@ -54,6 +53,7 @@ def parse_docx(file_path: Path) -> str:
 
 def parse_pdf(file_path: Path) -> str:
     """Trích xuất text từ file PDF"""
+    from pypdf import PdfReader
     reader = PdfReader(str(file_path))
     pages_text = []
     for i, page in enumerate(reader.pages):
