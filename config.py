@@ -1,19 +1,28 @@
 import os
+import tempfile
 from pathlib import Path
 from typing import List
 
 BASE_DIR = Path(__file__).resolve().parent
-UPLOAD_DIR = BASE_DIR / "uploads"
 STATIC_DIR = BASE_DIR / "static"
 TEMPLATES_DIR = BASE_DIR / "templates"
 ENV_FILE = BASE_DIR / ".env"
 
-UPLOAD_DIR.mkdir(exist_ok=True)
-STATIC_DIR.mkdir(exist_ok=True)
-TEMPLATES_DIR.mkdir(exist_ok=True)
+# Tren Vercel Serverless, he thong file la Read-Only ngoai tru /tmp
+if os.environ.get("VERCEL"):
+    UPLOAD_DIR = Path(tempfile.gettempdir()) / "uploads"
+else:
+    UPLOAD_DIR = BASE_DIR / "uploads"
+
+try:
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    STATIC_DIR.mkdir(exist_ok=True)
+    TEMPLATES_DIR.mkdir(exist_ok=True)
+except OSError:
+    pass
 
 def load_env_file(filepath: Path):
-    """Tự động nạp file .env vào os.environ"""
+    """Tu dong nap file .env vao os.environ"""
     if not filepath.exists():
         return
     try:
@@ -28,9 +37,9 @@ def load_env_file(filepath: Path):
             if key and val:
                 os.environ[key] = val
     except Exception as e:
-        print(f"Lỗi đọc file .env: {e}")
+        print(f"Loi doc file .env: {e}")
 
-# Nạp .env khi khởi động
+# Nap .env khi khoi dong
 load_env_file(ENV_FILE)
 
 # Ollama API Configuration
@@ -39,13 +48,13 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 # Default Models
 DEFAULT_THINKING_MODEL = os.getenv("DEFAULT_OLLAMA_MODEL", "qwen2.5:7b")
 DEFAULT_CODER_MODEL = "qwen2.5-coder:7b"
-DEFAULT_GEMINI_MODEL = os.getenv("DEFAULT_GEMINI_MODEL", "gemini-3.6-flash")
+DEFAULT_GEMINI_MODEL = os.getenv("DEFAULT_GEMINI_MODEL", "gemini-flash-latest")
 
-# Gemini Keys from .env (hỗ trợ GEMINI_API_KEY_1, GEMINI_API_KEY_2, ..., GEMINI_API_KEYS và GEMINI_API_KEY)
+# Gemini Keys from .env
 def get_gemini_keys_from_env() -> List[str]:
     keys = []
     
-    # 1. Quét các biến dạng GEMINI_API_KEY_1, GEMINI_API_KEY_2, GEMINI_API_KEY_3...
+    # 1. Quet cac bien dang GEMINI_API_KEY_1, GEMINI_API_KEY_2, GEMINI_API_KEY_3...
     numbered_keys = []
     for env_k, env_v in os.environ.items():
         if env_k.startswith("GEMINI_API_KEY_"):
@@ -58,13 +67,13 @@ def get_gemini_keys_from_env() -> List[str]:
             if clean_v:
                 numbered_keys.append((num, clean_v))
                 
-    # Sắp xếp đúng thứ tự 1, 2, 3, 4, 5...
+    # Sap xep dung thu tu 1, 2, 3, 4, 5...
     numbered_keys.sort(key=lambda x: x[0])
     for _, v in numbered_keys:
         if v and v not in keys:
             keys.append(v)
 
-    # 2. Quét GEMINI_API_KEYS (danh sách nhiều key ngăn cách bằng dấu phẩy)
+    # 2. Quet GEMINI_API_KEYS (danh sach nhieu key cach nhau bang dau phay)
     keys_multi = os.getenv("GEMINI_API_KEYS", "")
     if keys_multi:
         for k in keys_multi.split(","):
@@ -72,7 +81,7 @@ def get_gemini_keys_from_env() -> List[str]:
             if clean_k and clean_k not in keys:
                 keys.append(clean_k)
 
-    # 3. Quét GEMINI_API_KEY (1 key đơn lẻ)
+    # 3. Quet GEMINI_API_KEY (1 key don le)
     key_single = os.getenv("GEMINI_API_KEY", "")
     if key_single:
         clean_s = key_single.strip().strip("'").strip('"')

@@ -98,7 +98,10 @@ class ApiKeyRotator:
             "DEFAULT_GEMINI_MODEL=gemini-flash-latest",
             ""
         ])
-        filepath.write_text("\n".join(lines), encoding="utf-8")
+        try:
+            filepath.write_text("\n".join(lines), encoding="utf-8")
+        except Exception:
+            pass
 
     def get_next_key(self, provider: str) -> Optional[Tuple[str, int]]:
         """
